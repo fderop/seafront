@@ -2,3 +2,12 @@
 figures/*
 raw/*
 resources/*
+
+meta/*
+src/seafront/*.pyc
+
+__pycache__/
+*.pyc
+
+*.egg-info/
+

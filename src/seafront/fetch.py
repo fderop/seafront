@@ -70,28 +70,3 @@ def fetch_and_save_data(organism, dataset_id, adata_path, raw_dir, adata_fname, 
 
     return adata
 
-
-def summarize_obs(obs):
-    exclude_cols = ["observation_joinid", "soma_joinid"]
-    obs = obs[[c for c in obs.columns if c not in exclude_cols]]
-
-    summary_dict = {}
-
-    for col in obs.columns:
-        if col == "dataset_id":
-            continue
-        elif col.startswith("n_") or col in {"raw_sum", "nnz", "raw_mean_nnz", "raw_variance_nnz"}:
-            summary_dict[col] = ("median_" + col, "median")
-        elif col in {"cell_type", "assay", "tissue", "disease", "self_reported_ethnicity",
-                     "sex", "development_stage", "tissue_general", "suspension_type", "donor_id"}:
-            summary_dict[col] = ("unique_" + col + "s_present", lambda x: ", ".join(sorted(set(map(str, x.dropna().unique())))))
-        elif col.endswith("_ontology_term_id"):
-            summary_dict[col] = ("unique_" + col + "s_present", lambda x: ", ".join(sorted(set(map(str, x.dropna().unique())))))
-        else:
-            summary_dict[col] = ("unique_" + col + "s_present", lambda x: ", ".join(sorted(set(map(str, x.dropna().unique())))))
-
-    agg_dict = {k: v[1] for k, v in summary_dict.items()}
-    rename_dict = {k: v[0] for k, v in summary_dict.items()}
-
-    summary = obs.groupby("dataset_id").agg(agg_dict).reset_index().rename(columns=rename_dict)
-    return summary
