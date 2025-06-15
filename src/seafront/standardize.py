@@ -1,19 +1,18 @@
-import pandas as pd
 import re
+import pandas as pd
 
 def summarize_obs(obs):
     exclude_cols = ["observation_joinid", "soma_joinid"]
-    obs = obs[[c for c in obs.columns if c not in exclude_cols]]
+    obs = obs[[c for c in obs.columns if c not in exclude_cols]].copy()
 
     summary_dict = {}
-
     for col in obs.columns:
-        if col == "dataset_id":
+        if col == "experiment":
             continue
         elif col.startswith("n_") or col in {"raw_sum", "nnz", "raw_mean_nnz", "raw_variance_nnz"}:
             summary_dict[col] = ("median_" + col, "median")
         elif col in {"cell_type", "assay", "tissue", "disease", "self_reported_ethnicity",
-                     "sex", "development_stage", "tissue_general", "suspension_type", "donor_id"}:
+                     "sex", "development_stage", "tissue_general", "suspension_type", "donor_id", "dataset_id", "assay_simple"}:
             summary_dict[col] = ("unique_" + col + "s_present", lambda x: ", ".join(sorted(set(map(str, x.dropna().unique())))))
         elif col.endswith("_ontology_term_id"):
             summary_dict[col] = ("unique_" + col + "s_present", lambda x: ", ".join(sorted(set(map(str, x.dropna().unique())))))
@@ -23,8 +22,9 @@ def summarize_obs(obs):
     agg_dict = {k: v[1] for k, v in summary_dict.items()}
     rename_dict = {k: v[0] for k, v in summary_dict.items()}
 
-    summary = obs.groupby("dataset_id", observed=False).agg(agg_dict).reset_index().rename(columns=rename_dict)
+    summary = obs.groupby("experiment", observed=False).agg(agg_dict).reset_index().rename(columns=rename_dict)
     return summary
+
 
 def filter_age(stage_str, convert_map=None, drop_set=None):
     if convert_map is None:
@@ -70,4 +70,26 @@ def filter_obs_with_age_int(obs):
     obs = obs.copy()
     obs["age_int"] = obs["development_stage"].map(lambda stage: filter_age(stage)).astype('Int64')
     obs = obs[obs["age_int"].notnull()].copy()
+    return obs
+
+
+def map_assay_simple(obs):
+    assay_map = {
+        "10x 3' v3": "10x_3_prime",
+        "10x 3' v2": "10x_3_prime",
+        "10x 3' v1": "10x_3_prime",
+        "10x 3' transcription profiling": "10x_3_prime",
+        "10x 5' v2": "10x_5_prime",
+        "10x 5' v1": "10x_5_prime",
+        "10x 5' transcription profiling": "10x_5_prime",
+        "10x gene expression flex": "10x_flex",
+        "ScaleBio single cell RNA sequencing": "ScaleBio",
+        "BD Rhapsody Whole Transcriptome Analysis": "BD_WTA",
+        "BD Rhapsody Targeted mRNA": "BD_targeted",
+        "GEXSCOPE technology": "GEXSCOPE",
+    }
+
+    obs = obs.copy()
+    obs["assay_simple"] = obs["assay"].astype(str).replace(assay_map)
+    obs["assay_simple"] = pd.Categorical(obs["assay_simple"])
     return obs
